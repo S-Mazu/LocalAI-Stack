@@ -1,0 +1,45 @@
+# Caddyfile — Reverse Proxy
+#
+# Zweck: Jeder Container wird unter seinem Namen erreichbar, statt unter
+# localhost mit Portnummer. Aus http://localhost:3000 wird http://chat
+#
+# Wie es zusammenspielt:
+#   1. Die hosts-Datei von Windows leitet die Namen auf 127.0.0.1
+#   2. Dort nimmt dieser Proxy auf Port 80 die Anfrage entgegen
+#   3. Anhand des Namens im Aufruf wählt er den passenden Container
+#
+# Aufbau eines Blocks:
+#   http://<name>            = worauf der Proxy hört
+#   reverse_proxy <ziel>     = wohin er weiterleitet, Containername plus Port
+#
+# Das Präfix http:// ist Pflicht: Ohne es versucht Caddy, für jeden Namen
+# ein HTTPS-Zertifikat zu beschaffen. Das schlägt bei lokalen Namen fehl.
+
+
+# Chat-Oberfläche (Open WebUI)
+# Ziel ist Port 8080, weil der Container intern darauf hört.
+# Die Weiterleitung 3000:8080 aus der docker-compose.yml gilt hier nicht.
+http://chat {
+    reverse_proxy chat:8080
+}
+
+# Workflow-Automatisierung (n8n)
+http://automation {
+    reverse_proxy automation:5678
+}
+
+# MCP-Werkzeuge (mcpo)
+# Die Werkzeugliste liegt unter http://tools/docs
+http://tools {
+    reverse_proxy tools:8000
+}
+
+# Dokument-Extraktion (Docling)
+http://extraction {
+    reverse_proxy extraction:5001
+}
+
+# Sprachmodelle (Ollama)
+http://inference {
+    reverse_proxy inference:11434
+}

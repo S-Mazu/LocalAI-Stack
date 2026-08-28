@@ -1,0 +1,118 @@
+# docker-compose.yml — Local LLM Stack
+#
+# Diese Datei beschreibt alle sechs Container. Ein einziger Befehl startet
+# sie gemeinsam:  docker compose up -d
+#
+# Wiederkehrende Begriffe:
+#   image           Vorlage, aus der ein Container entsteht. Docker lädt sie
+#                   beim ersten Start automatisch herunter.
+#   container_name  Name des laufenden Containers. Zugleich der Name, unter
+#                   dem ihn die anderen Container im internen Netz erreichen.
+#   ports           "aussen:innen" — macht einen Container-Port auf dem
+#                   Windows-Rechner erreichbar.
+#   volumes         Dauerhafter Speicher. Ohne ihn wären alle Daten weg,
+#                   sobald ein Container neu erstellt wird.
+#   environment     Einstellungen, die der Container beim Start liest.
+#   depends_on      Startreihenfolge.
+#   restart         "unless-stopped" = startet automatisch mit Windows.
+#
+# Compose legt automatisch ein gemeinsames Netzwerk an. Darin erreichen sich
+# die Container ueber ihren Namen, zum Beispiel http://inference:11434
+# Vom Windows-Rechner aus funktionieren diese Namen nicht — dafuer gibt es
+# die ports-Eintraege und den proxy-Container.
+
+services:
+
+  # Sprachmodelle. Laeuft als einziger Container auf der Grafikkarte.
+  inference:
+    container_name: inference
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes:
+      # Hier liegen die heruntergeladenen Modelle, mehrere Gigabyte.
+      - inference:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            # Reicht die NVIDIA-Grafikkarte in den Container durch.
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # Wandelt hochgeladene PDFs in strukturierten Text um.
+  # Braucht keinen dauerhaften Speicher: verarbeitet nur und gibt zurueck.
+  extraction:
+    container_name: extraction
+    image: ghcr.io/docling-project/docling-serve-cpu:latest
+    ports: ["5001:5001"]
+    environment:
+      # Schaltet die eingebaute Testoberflaeche frei.
+      - DOCLING_SERVE_ENABLE_UI=1
+    restart: unless-stopped
+
+  # Uebersetzt die MCP-Werkzeuge in eine Schnittstelle, die Open WebUI versteht.
+  tools:
+    container_name: tools
+    image: ghcr.io/open-webui/mcpo:main
+    ports: ["8000:8000"]
+    volumes:
+      # Die Konfigurationsdatei vom Windows-Ordner, nur lesend (:ro).
+      - ./tools:/config:ro
+      # Speicher fuer das Gedaechtnis des memory-Werkzeugs.
+      - tools:/data
+    command: ["--config", "/config/config.json", "--hot-reload"]
+    restart: unless-stopped
+
+  # Die Chat-Oberflaeche. Enthaelt auch die Dokumentensuche.
+  chat:
+    container_name: chat
+    image: ghcr.io/open-webui/open-webui:main
+    # Innen 8080, nach aussen 3000.
+    ports: ["3000:8080"]
+    environment:
+      - OLLAMA_BASE_URL=http://inference:11434
+    volumes:
+      # Konten, Chats, Einstellungen, Vektoren und das Reranker-Modell.
+      - chat:/app/backend/data
+    depends_on: [inference, extraction, tools]
+    restart: unless-stopped
+
+  # Workflow-Automatisierung.
+  automation:
+    container_name: automation
+    image: docker.n8n.io/n8nio/n8n
+    ports: ["5678:5678"]
+    environment:
+      # Diese drei schalten Telemetrie ab. Ohne sie verzoegern sich
+      # Modellaufrufe unter Windows um Minuten.
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - EXTERNAL_FRONTEND_HOOKS_URLS=
+    volumes:
+      # Workflows und Zugangsdaten.
+      - automation:/home/node/.n8n
+    restart: unless-stopped
+
+  # Macht die Container unter ihrem Namen erreichbar statt ueber Ports.
+  proxy:
+    container_name: proxy
+    image: caddy:latest
+    ports: ["80:80"]
+    volumes:
+      # Der ganze Ordner, nicht die einzelne Datei — so verlangt es das Image.
+      - ./proxy:/etc/caddy
+      - proxy:/data
+    depends_on: [inference, chat, extraction, tools, automation]
+    restart: unless-stopped
+
+# Benannte Speicherbereiche. Docker verwaltet sie selbst; sie ueberleben
+# das Neuerstellen der Container und werden erst durch
+# "docker compose down -v" geloescht.
+volumes:
+  inference:
+  chat:
+  automation:
+  tools:
+  proxy:
