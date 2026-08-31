@@ -1,0 +1,72 @@
+# docker-compose.yml — Gemma 4 12B MTP-Teststack
+#
+# Vier Container zum Vergleich von llama.cpp mit/ohne Multi-Token Prediction
+# (MTP) gegen Ollama, alle mit demselben Gemma-4-12B-Modell (Q4_K_XL).
+#
+#   docker compose pull && docker compose up -d       Normalbetrieb — startet
+#                                                      llama-mtp, ollama, open-webui
+#   docker compose --profile iso up -d llama-base      Referenzphase des Benchmarks
+#
+# llama-base liegt im Profil "iso" und laeuft nicht im Normalbetrieb mit; das
+# Benchmark-Skript (bench_iso.py) faehrt es gezielt hoch und wieder herunter.
+
+services:
+
+  # llama.cpp MIT MTP — der Pruefstand.
+  llama-mtp:
+    container_name: llama-mtp
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    gpus: all
+    ports: ["8080:8080"]
+    volumes:
+      - ./models:/models
+    command: >
+      -m /models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf
+      --model-draft /models/mtp-gemma-4-12B-it.gguf
+      --spec-type draft-mtp --spec-draft-n-max 2
+      -ngl 999 -fa on
+      -c 8192
+      --host 0.0.0.0 --port 8080
+    restart: unless-stopped
+
+  # llama.cpp OHNE MTP — Referenz. Nur mit "--profile iso" aktiv, damit nie
+  # zwei 12B-Instanzen gleichzeitig im VRAM liegen.
+  llama-base:
+    container_name: llama-base
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    gpus: all
+    ports: ["8081:8080"]
+    volumes:
+      - ./models:/models
+    command: >
+      -m /models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf
+      -ngl 999 -fa on
+      -c 8192
+      --host 0.0.0.0 --port 8080
+    restart: unless-stopped
+    profiles: ["iso"]
+
+  # Ollama — dasselbe Q4_K_XL-Modell, fuer den Stack-Vergleich.
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:latest
+    gpus: all
+    ports: ["11434:11434"]
+    volumes:
+      - ./ollama:/root/.ollama
+      # Zugriff auf dieselbe GGUF wie llama.cpp, fuer den Modell-Import (3.6).
+      - ./models:/models:ro
+    restart: unless-stopped
+
+  # Gemeinsame Chat-UI fuer den subjektiven Test (4.1).
+  open-webui:
+    container_name: open-webui
+    image: ghcr.io/open-webui/open-webui:main
+    ports: ["3000:8080"]
+    environment:
+      - OPENAI_API_BASE_URL=http://llama-mtp:8080/v1
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - ./openwebui:/app/backend/data
+    depends_on: [llama-mtp, ollama]
+    restart: unless-stopped

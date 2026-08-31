@@ -83,143 +83,19 @@ C:\Project\Local-LLM\
 
 ### 3.4 Create the MCP configuration
 
-`C:\Project\Local-LLM\tools\config.json`:
-
-```json
-{
-  "mcpServers": {
-    "memory": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"],
-      "env": {
-        "MEMORY_FILE_PATH": "/data/memory.json"
-      }
-    },
-    "fetch": {
-      "command": "uvx",
-      "args": ["mcp-server-fetch"]
-    },
-    "sequential-thinking": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
-    },
-    "everything": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-everything"]
-    }
-  }
-}
-```
+Copy [`config.json`](config.json) from this folder to `C:\Project\Local-LLM\tools\config.json`.
 
 ### 3.5 Create the proxy configuration
 
-`C:\Project\Local-LLM\proxy\Caddyfile`:
+Copy [`Caddyfile`](Caddyfile) from this folder to `C:\Project\Local-LLM\proxy\Caddyfile`.
 
-```
-http://chat {
-    reverse_proxy chat:8080
-}
-
-http://automation {
-    reverse_proxy automation:5678
-}
-
-http://tools {
-    reverse_proxy tools:8000
-}
-
-http://extraction {
-    reverse_proxy extraction:5001
-}
-
-http://inference {
-    reverse_proxy inference:11434
-}
-```
-
-The `http://` prefix stops Caddy from trying to obtain certificates for these names.
+The `http://` prefix in it stops Caddy from trying to obtain certificates for these names.
 
 ### 3.6 Create docker-compose.yml
 
-`C:\Project\Local-LLM\docker-compose.yml`:
+Copy [`docker-compose.yml`](docker-compose.yml) from this folder to `C:\Project\Local-LLM\docker-compose.yml`.
 
-```yaml
-services:
-  inference:
-    container_name: inference
-    image: ollama/ollama:latest
-    ports: ["11434:11434"]
-    volumes:
-      - inference:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    restart: unless-stopped
-
-  extraction:
-    container_name: extraction
-    image: ghcr.io/docling-project/docling-serve-cpu:latest
-    ports: ["5001:5001"]
-    environment:
-      - DOCLING_SERVE_ENABLE_UI=1
-    restart: unless-stopped
-
-  tools:
-    container_name: tools
-    image: ghcr.io/open-webui/mcpo:main
-    ports: ["8000:8000"]
-    volumes:
-      - ./tools:/config:ro
-      - tools:/data
-    command: ["--config", "/config/config.json", "--hot-reload"]
-    restart: unless-stopped
-
-  chat:
-    container_name: chat
-    image: ghcr.io/open-webui/open-webui:main
-    ports: ["3000:8080"]
-    environment:
-      - OLLAMA_BASE_URL=http://inference:11434
-    volumes:
-      - chat:/app/backend/data
-    depends_on: [inference, extraction, tools]
-    restart: unless-stopped
-
-  automation:
-    container_name: automation
-    image: docker.n8n.io/n8nio/n8n
-    ports: ["5678:5678"]
-    environment:
-      - N8N_DIAGNOSTICS_ENABLED=false
-      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
-      - EXTERNAL_FRONTEND_HOOKS_URLS=
-    volumes:
-      - automation:/home/node/.n8n
-    restart: unless-stopped
-
-  proxy:
-    container_name: proxy
-    image: caddy:latest
-    ports: ["80:80"]
-    volumes:
-      - ./proxy:/etc/caddy
-      - proxy:/data
-    depends_on: [inference, chat, extraction, tools, automation]
-    restart: unless-stopped
-
-volumes:
-  inference:
-  chat:
-  automation:
-  tools:
-  proxy:
-```
-
-The three `N8N_` variables turn off telemetry; without them, model calls are delayed by minutes under Windows.
+The three `N8N_` variables in it turn off telemetry; without them, model calls are delayed by minutes under Windows.
 
 ### 3.7 Register names for the proxy
 

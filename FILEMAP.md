@@ -14,3 +14,5 @@
 | `LocalAI-Stack/config.json` | MCP server config for the `tools` container, LocalAI-Stack |
 | `MTP-MultiTokenPrediction/README.md` | HowTo + benchmark, MTP test stack (English) |
 | `MTP-MultiTokenPrediction/README-DE.md` | German counterpart |
+| `MTP-MultiTokenPrediction/docker-compose.yml` | Container definitions, MTP test stack |
+| `MTP-MultiTokenPrediction/bench_iso.py` | Isolation benchmark script, MTP test stack |
