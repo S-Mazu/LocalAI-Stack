@@ -1,7 +1,3 @@
-# LocalAI-Stack
-Dokumentation, wie ich meinen lokalen AI-Stack unter Windows baue.
-
-
 # Local LLM Stack — How-To
 
 > Erstellt durch Stefan Mazur mit Claude Opus 5, Stand 28.08.2026
@@ -53,9 +49,10 @@ docker run --rm -it --gpus=all nvcr.io/nvidia/k8s/cuda-sample:nbody nbody -gpu -
 In der Ausgabe muss die Karte namentlich erscheinen:
 
 ```
-GPU Device 0: "NVIDIA GeForce RTX 5080" with compute capability …
-> Compute … CUDA device: [NVIDIA GeForce RTX 5080]
+> Compute 12.0 CUDA device: [NVIDIA GeForce RTX 5080 Laptop GPU]
 ```
+
+Die Zeile darüber nennt die Architektur, nicht die Karte, und kann veraltet sein — das CUDA-Sample kennt Blackwell nicht und meldet „Ampere".
 
 Test-Image danach entfernen:
 
@@ -102,7 +99,7 @@ Die drei `N8N_`-Variablen darin schalten Telemetrie ab; ohne sie verzögern sich
 1. Editor als Administrator starten, `C:\Windows\System32\drivers\etc\hosts` öffnen.
 2. Am Ende anhängen:
    ```
-   127.0.0.1 chat automation tools extraction inference
+   127.0.0.1 chat.ai.internal automation.ai.internal tools.ai.internal extraction.ai.internal inference.ai.internal
    ```
 3. Speichern, dann in PowerShell:
    ```powershell
@@ -130,14 +127,14 @@ docker exec inference ollama list
 
 ### 3.10 Konto in `chat` anlegen
 
-1. Browser: `http://chat`
+1. Browser: `http://chat.ai.internal`
 2. **Sign up** wählen, Name, E-Mail und Passwort eintragen, absenden.
 
 Das erste angelegte Konto erhält Administratorrechte.
 
 ### 3.11 Dokumentverarbeitung in `chat` einrichten
 
-1. Browser: `http://chat/admin`
+1. Browser: `http://chat.ai.internal/admin`
 2. Reiter **Settings** → Eintrag **Documents**
 3. Werte setzen:
 
@@ -150,6 +147,7 @@ Das erste angelegte Konto erhält Administratorrechte.
    | Embedding Model | `qwen3-embedding:8b` |
    | Chunk Size | `512` |
    | Chunk Overlap | `50` |
+   | Embedding Batch Size | `32` |
    | Hybrid Search | eingeschaltet |
    | Reranking Model | `BAAI/bge-reranker-v2-m3` |
    | Top K | `5` |
@@ -161,9 +159,9 @@ Beim Speichern lädt `chat` das Reranker-Modell herunter; das dauert einige Minu
 
 ### 3.12 Werkzeuge in `chat` anbinden
 
-1. Browser: `http://chat/admin`
-2. Reiter **Settings** → Eintrag **Tools**
-3. Auf **+** klicken, eine URL eintragen, **Save** — vier Mal, je Zeile einmal:
+1. Browser: `http://chat.ai.internal/admin`
+2. Reiter **Settings** → Eintrag **Integrations** → Abschnitt **External Tool Servers**
+3. Rechts auf **+** klicken, eine URL eintragen, **Save** — vier Mal, je Zeile einmal:
 
    | URL |
    |---|
@@ -178,7 +176,7 @@ Jeder MCP-Server hat einen eigenen Pfad; die URL `http://tools:8000` ohne Pfad f
 
 Aufzubauender Workflow: **Chat Trigger → Basic LLM Chain → Ollama Chat Model**
 
-1. Browser: `http://automation`, Konto anlegen.
+1. Browser: `http://automation.ai.internal`, Konto anlegen.
 2. Oben rechts **Create Workflow** klicken.
 3. **Add first step** → im Suchfeld `Chat Trigger` eingeben → Treffer anklicken. Der Node erscheint auf der Arbeitsfläche; das geöffnete Fenster mit **Back to canvas** schließen.
 4. Auf das **+** rechts am Chat-Trigger-Node klicken → `Basic LLM Chain` suchen → anklicken. Feld **Prompt** auf `Take from previous node automatically` stehen lassen. **Back to canvas**.
@@ -195,11 +193,11 @@ Alle drei Nodes werden grün und im Chat steht die Antwort des Modells.
 
 | Container | Name | Port |
 |---|---|---|
-| `chat` | `http://chat` | `http://localhost:3000` |
-| `automation` | `http://automation` | `http://localhost:5678` |
-| `tools` | `http://tools/docs` | `http://localhost:8000/docs` |
-| `extraction` | `http://extraction` | `http://localhost:5001` |
-| `inference` | `http://inference` | `http://localhost:11434` |
+| `chat` | `http://chat.ai.internal` | `http://localhost:3000` |
+| `automation` | `http://automation.ai.internal` | `http://localhost:5678` |
+| `tools` | `http://tools.ai.internal/docs` | `http://localhost:8000/docs` |
+| `extraction` | `http://extraction.ai.internal` | `http://localhost:5001` |
+| `inference` | `http://inference.ai.internal` | `http://localhost:11434` |
 
 `chat` und `automation` sind durch die angelegten Konten geschützt, die übrigen drei nicht — die Ports nicht ins Netzwerk freigeben.
 
@@ -219,7 +217,7 @@ docker compose down -v --rmi all
 ### 4.2 Namenseinträge entfernen
 
 1. Editor als Administrator starten, `C:\Windows\System32\drivers\etc\hosts` öffnen.
-2. Zeile `127.0.0.1 chat automation tools extraction inference` löschen, speichern.
+2. Zeile `127.0.0.1 chat.ai.internal automation.ai.internal tools.ai.internal extraction.ai.internal inference.ai.internal` löschen, speichern.
 3. In PowerShell:
    ```powershell
    ipconfig /flushdns
@@ -248,7 +246,114 @@ Remove-Item -Recurse -Force C:\Project\Local-LLM
 
 ---
 
-## 5. Links
+## 5. Optional
+
+### 5.1 Docling-API
+
+Wandelt Dateien in Markdown um, unabhängig von der Dokumentensuche. Es ist nichts zu installieren — `extraction` läuft bereits.
+
+**Weg 1 — Oberfläche**
+
+1. Browser: `http://extraction.ai.internal/ui`
+2. Datei hineinziehen, Ausgabeformat **md** wählen, umwandeln, Ergebnis herunterladen.
+
+**Weg 2 — Kommandozeile**
+
+PowerShell im Ordner mit der Quelldatei:
+
+```powershell
+$antwort = curl.exe -s -X POST http://extraction.ai.internal/v1/convert/file `
+  -F "files=@dokument.pdf;type=application/pdf" `
+  -F "to_formats=md" | ConvertFrom-Json
+$antwort.document.md_content | Out-File -Encoding utf8 dokument.md
+```
+
+`curl.exe` muss mit Endung geschrieben werden — `curl` allein ist in PowerShell ein anderer Befehl.
+
+Alle Endpunkte und Optionen: `http://extraction.ai.internal/docs`
+
+### 5.2 Portainer
+
+Oberfläche zur Verwaltung aller Container: Status, Logs, Konsole, Neustart, Ressourcenverbrauch. Ersetzt die PowerShell-Befehle aus Abschnitt 3.
+
+**Schritt 1 — Dienst in `docker-compose.yml` einkommentieren**
+
+In [`docker-compose.yml`](docker-compose.yml) die Kommentarzeichen an drei Stellen entfernen:
+
+| Stelle | Was |
+|---|---|
+| Block `management:` unter `services:` | Der Dienst selbst |
+| Eintrag `management:` unter `volumes:` | Sein Speicher |
+| Zweite `depends_on`-Zeile beim Dienst `proxy` | Die Variante mit `management`; die erste dafür auskommentieren |
+
+Ohne den Schalter `--http-enabled` dient Portainer nur HTTPS auf Port 9443 aus.
+
+**Schritt 2 — Block im `Caddyfile` einkommentieren**
+
+In [`Caddyfile`](Caddyfile) die Kommentarzeichen vor dem Block `http://management.ai.internal` entfernen.
+
+**Schritt 3 — Namen in die hosts-Datei eintragen**
+
+Editor als Administrator starten, `C:\Windows\System32\drivers\etc\hosts` öffnen, an die vorhandene Zeile `management.ai.internal` anhängen, speichern.
+
+```powershell
+ipconfig /flushdns
+```
+
+**Schritt 4 — Starten und Setup-Token abholen**
+
+```powershell
+cd C:\Project\Local-LLM
+docker compose up -d
+docker logs management
+```
+
+In der Ausgabe die Zeile mit `setup_token=` suchen und den Wert kopieren.
+
+**Schritt 5 — Konto anlegen**
+
+1. Browser: `http://management.ai.internal`
+2. **Setup token** einfügen, Benutzername und Passwort vergeben — mindestens zwölf Zeichen — **Create user**
+3. Beim Bildschirm zu Edge Compute **Skip** wählen
+4. **Get Started** klicken
+
+Ab dem Start des Containers bleiben fünf Minuten, um Schritt 5 abzuschließen; danach beendet sich der Dienst im Container. `docker restart management` startet das Zeitfenster neu, mit neuem Token.
+
+Der Mount von `/var/run/docker.sock` gibt Portainer volle Kontrolle über die Docker-Engine und damit über den Rechner — die Oberfläche nicht ins Netzwerk freigeben.
+
+---
+
+## 6. Rückbau Optional
+
+### 6.1 Docling-API
+
+Die erzeugten Markdown-Dateien löschen:
+
+```powershell
+Remove-Item *.md
+```
+
+Am Stack selbst ist nichts zurückzubauen: Die API gehört zum bereits vorhandenen Container `extraction`.
+
+### 6.2 Portainer
+
+```powershell
+cd C:\Project\Local-LLM
+docker compose stop management
+docker compose rm -f management
+docker volume rm local-llm_management
+```
+
+Danach in der `docker-compose.yml` den Dienst `management`, seinen Volume-Eintrag und die `depends_on`-Variante mit `management` wieder auskommentieren, den Block im `Caddyfile` wieder auskommentieren und `management.ai.internal` aus der hosts-Datei entfernen.
+
+```powershell
+docker compose up -d
+ipconfig /flushdns
+```
+
+---
+
+## 7. Links
 
 **Modelle**
 - Qwen3.5 (Ollama): https://ollama.com/library/qwen3.5
@@ -276,7 +381,6 @@ Remove-Item -Recurse -Force C:\Project\Local-LLM
 - Open WebUI — Tools: https://docs.openwebui.com/features/extensibility/plugin/tools/
 - Open WebUI — Umgebungsvariablen: https://docs.openwebui.com/getting-started/env-configuration/
 - Open WebUI — OpenAPI-Toolserver: https://docs.openwebui.com/openapi-servers/open-webui/
-- Open WebUI — SSO: https://docs.openwebui.com/features/sso/
 - Docker Compose — GPU-Support: https://docs.docker.com/compose/how-tos/gpu-support/
 - Caddy — Caddyfile-Tutorial: https://caddyserver.com/docs/caddyfile-tutorial
 - Caddy — Direktive `reverse_proxy`: https://caddyserver.com/docs/caddyfile/directives/reverse_proxy
@@ -295,27 +399,13 @@ Remove-Item -Recurse -Force C:\Project\Local-LLM
 - WSL — Befehle und Optionen: https://learn.microsoft.com/en-us/windows/wsl/basic-commands
 - Docker Compose — Netzwerke und Namensauflösung: https://docs.docker.com/compose/how-tos/networking/
 
-**Optional**
-- ComfyUI: https://docs.comfy.org/
-- SearXNG: https://docs.searxng.org/
-- oauth2-proxy: https://oauth2-proxy.github.io/oauth2-proxy/
-- Langfuse: https://langfuse.com/self-hosting
-- Portainer: https://docs.portainer.io/
+**Docling**
+- Docling: https://docling-project.github.io/docling/
+- Docling-Serve — API-Nutzung: https://github.com/docling-project/docling-serve/blob/main/docs/usage.md
 
----
-
-## 6. Optional
-
-**Fähigkeiten**
-- **ComfyUI** — Bildgenerierung, vom Modell über ein Werkzeug oder von `automation` aus ansteuerbar.
-- **SearXNG** — selbstgehostete Metasuche als Suchanbieter für `chat`, ohne API-Schlüssel und ohne Anfragen an Dritte.
-
-**Zugang**
-- **oauth2-proxy** — Anmeldung an `chat` über einen bestehenden Identitätsanbieter statt über lokale Konten.
-
-**Datenzugriff**
-- **Docling-API** — `extraction` direkt ansprechen und Dokumente als Markdown-Dateien abholen, unabhängig von der Dokumentensuche.
-
-**Betrieb**
-- **Langfuse** — zeichnet auf, welche Textabschnitte abgerufen und welche Werkzeuge aufgerufen wurden.
-- **Portainer** — Container, Logs und Volumes über eine Oberfläche statt über die Kommandozeile.
+**Portainer**
+- Installation unter WSL / Docker Desktop: https://docs.portainer.io/start/install-ce/server/docker/wsl
+- Ersteinrichtung: https://docs.portainer.io/start/install-ce/server/setup
+- Setup-Token finden, überspringen, anpassen: https://docs.portainer.io/faqs/installing/setup-token
+- CLI-Schalter: https://docs.portainer.io/advanced/cli
+- Fünf-Minuten-Zeitfenster: https://docs.portainer.io/faqs/installing/your-portainer-instance-has-timed-out-for-security-purposes-error-fix

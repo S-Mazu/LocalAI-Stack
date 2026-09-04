@@ -1,7 +1,3 @@
-# LocalAI-Stack
-Documentation on how I build my local AI stack on Windows.
-
-
 # Local LLM Stack — How-To
 
 > Created by Stefan Mazur with Claude Opus 5, as of 2026-08-28
@@ -53,9 +49,10 @@ docker run --rm -it --gpus=all nvcr.io/nvidia/k8s/cuda-sample:nbody nbody -gpu -
 The output must name the card:
 
 ```
-GPU Device 0: "NVIDIA GeForce RTX 5080" with compute capability …
-> Compute … CUDA device: [NVIDIA GeForce RTX 5080]
+> Compute 12.0 CUDA device: [NVIDIA GeForce RTX 5080 Laptop GPU]
 ```
+
+The line above it names the architecture, not the card, and can be outdated — the CUDA sample does not know Blackwell and reports "Ampere".
 
 Remove the test image afterwards:
 
@@ -95,21 +92,21 @@ The `http://` prefix in it stops Caddy from trying to obtain certificates for th
 
 Copy [`docker-compose.yml`](docker-compose.yml) from this folder to `C:\Project\Local-LLM\docker-compose.yml`.
 
-The three `N8N_` variables in it turn off telemetry; without them, model calls are delayed by minutes under Windows.
+The three `N8N_` variables in it switch telemetry off; without them model calls on Windows are delayed by minutes.
 
 ### 3.7 Register names for the proxy
 
-1. Open an editor as Administrator, open `C:\Windows\System32\drivers\etc\hosts`.
+1. Start an editor as Administrator, open `C:\Windows\System32\drivers\etc\hosts`.
 2. Append at the end:
    ```
-   127.0.0.1 chat automation tools extraction inference
+   127.0.0.1 chat.ai.internal automation.ai.internal tools.ai.internal extraction.ai.internal inference.ai.internal
    ```
 3. Save, then in PowerShell:
    ```powershell
    ipconfig /flushdns
    ```
 
-Windows cannot resolve container names on its own; this entry routes them to the proxy, which picks the right container by name.
+Windows cannot resolve container names on its own; this entry forwards them to the proxy, which picks the right container by name.
 
 ### 3.8 Start the stack
 
@@ -130,14 +127,14 @@ docker exec inference ollama list
 
 ### 3.10 Create an account in `chat`
 
-1. Browser: `http://chat`
-2. Choose **Sign up**, enter name, email and password, submit.
+1. Browser: `http://chat.ai.internal`
+2. Choose **Sign up**, enter name, e-mail and password, submit.
 
 The first account created gets administrator rights.
 
 ### 3.11 Set up document processing in `chat`
 
-1. Browser: `http://chat/admin`
+1. Browser: `http://chat.ai.internal/admin`
 2. **Settings** tab → **Documents** entry
 3. Set the values:
 
@@ -150,6 +147,7 @@ The first account created gets administrator rights.
    | Embedding Model | `qwen3-embedding:8b` |
    | Chunk Size | `512` |
    | Chunk Overlap | `50` |
+   | Embedding Batch Size | `32` |
    | Hybrid Search | enabled |
    | Reranking Model | `BAAI/bge-reranker-v2-m3` |
    | Top K | `5` |
@@ -157,13 +155,13 @@ The first account created gets administrator rights.
 
 4. Click **Save**.
 
-On save, `chat` downloads the reranker model; this takes a few minutes.
+On save, `chat` downloads the reranker model; that takes a few minutes.
 
 ### 3.12 Connect tools in `chat`
 
-1. Browser: `http://chat/admin`
-2. **Settings** tab → **Tools** entry
-3. Click **+**, enter a URL, **Save** — four times, once per line:
+1. Browser: `http://chat.ai.internal/admin`
+2. **Settings** tab → **Integrations** entry → **External Tool Servers** section
+3. Click **+** on the right, enter one URL, **Save** — four times, once per row:
 
    | URL |
    |---|
@@ -172,22 +170,22 @@ On save, `chat` downloads the reranker model; this takes a few minutes.
    | `http://tools:8000/sequential-thinking` |
    | `http://tools:8000/everything` |
 
-Each MCP server has its own path; the URL `http://tools:8000` without a path does not work.
+Every MCP server has its own path; the URL `http://tools:8000` without a path does not work.
 
 ### 3.13 Connect `automation` to the model
 
 Workflow to build: **Chat Trigger → Basic LLM Chain → Ollama Chat Model**
 
-1. Browser: `http://automation`, create an account.
-2. Click **Create Workflow** in the top right.
-3. **Add first step** → type `Chat Trigger` in the search field → click the hit. The node appears on the canvas; close the opened panel with **Back to canvas**.
-4. Click the **+** to the right of the Chat Trigger node → search `Basic LLM Chain` → click it. Leave the **Prompt** field on `Take from previous node automatically`. **Back to canvas**.
-5. Below the Chain node, at the **Model** connector, click **+** → search `Ollama Chat Model` → click it.
-6. At **Credential to connect with**, click **Create new credential**.
-7. Enter as **Base URL**: `http://inference:11434` → **Save** → close the panel.
-8. Back in the Ollama node, select `qwen3.5:9b-q4_K_M` under **Model**. **Back to canvas**.
-9. Click **Save** in the top right.
-10. Hover over the Chat Trigger node → click **Open chat** → send `Name three colors.`
+1. Browser: `http://automation.ai.internal`, create an account.
+2. Click **Create Workflow** at the top right.
+3. **Add first step** → type `Chat Trigger` in the search field → click the hit. The node appears on the canvas; close the opened window with **Back to canvas**.
+4. Click the **+** on the right of the Chat Trigger node → search `Basic LLM Chain` → click it. Leave the **Prompt** field on `Take from previous node automatically`. **Back to canvas**.
+5. Below the Chain node, click **+** on the **Model** connector → search `Ollama Chat Model` → click it.
+6. At **Credential to connect with** click **Create new credential**.
+7. Enter as **Base URL**: `http://inference:11434` → **Save** → close the window.
+8. Back in the Ollama node, select `qwen3.5:9b-q4_K_M` at **Model**. **Back to canvas**.
+9. Click **Save** at the top right.
+10. Hover the Chat Trigger node → click **Open chat** → send `Name three colours.`
 
 All three nodes turn green and the model's answer appears in the chat.
 
@@ -195,13 +193,13 @@ All three nodes turn green and the model's answer appears in the chat.
 
 | Container | Name | Port |
 |---|---|---|
-| `chat` | `http://chat` | `http://localhost:3000` |
-| `automation` | `http://automation` | `http://localhost:5678` |
-| `tools` | `http://tools/docs` | `http://localhost:8000/docs` |
-| `extraction` | `http://extraction` | `http://localhost:5001` |
-| `inference` | `http://inference` | `http://localhost:11434` |
+| `chat` | `http://chat.ai.internal` | `http://localhost:3000` |
+| `automation` | `http://automation.ai.internal` | `http://localhost:5678` |
+| `tools` | `http://tools.ai.internal/docs` | `http://localhost:8000/docs` |
+| `extraction` | `http://extraction.ai.internal` | `http://localhost:5001` |
+| `inference` | `http://inference.ai.internal` | `http://localhost:11434` |
 
-`chat` and `automation` are protected by the accounts created above, the other three are not — do not expose these ports to the network.
+`chat` and `automation` are protected by the accounts created, the other three are not — do not expose those ports to the network.
 
 ---
 
@@ -214,12 +212,12 @@ cd C:\Project\Local-LLM
 docker compose down -v --rmi all
 ```
 
-`-v` deletes the volumes with all models, accounts and data, `--rmi all` deletes the images.
+`-v` deletes the volumes with all models, accounts and data, `--rmi all` the images.
 
 ### 4.2 Remove the name entries
 
-1. Open an editor as Administrator, open `C:\Windows\System32\drivers\etc\hosts`.
-2. Delete the line `127.0.0.1 chat automation tools extraction inference`, save.
+1. Start an editor as Administrator, open `C:\Windows\System32\drivers\etc\hosts`.
+2. Delete the line `127.0.0.1 chat.ai.internal automation.ai.internal tools.ai.internal extraction.ai.internal inference.ai.internal`, save.
 3. In PowerShell:
    ```powershell
    ipconfig /flushdns
@@ -248,7 +246,114 @@ Remove-Item -Recurse -Force C:\Project\Local-LLM
 
 ---
 
-## 5. Links
+## 5. Optional
+
+### 5.1 Docling API
+
+Converts files to Markdown, independently of document search. There is nothing to install — `extraction` is already running.
+
+**Way 1 — interface**
+
+1. Browser: `http://extraction.ai.internal/ui`
+2. Drag a file in, choose output format **md**, convert, download the result.
+
+**Way 2 — command line**
+
+PowerShell in the folder holding the source file:
+
+```powershell
+$response = curl.exe -s -X POST http://extraction.ai.internal/v1/convert/file `
+  -F "files=@document.pdf;type=application/pdf" `
+  -F "to_formats=md" | ConvertFrom-Json
+$response.document.md_content | Out-File -Encoding utf8 document.md
+```
+
+`curl.exe` must be written with the extension — `curl` alone is a different command in PowerShell.
+
+All endpoints and options: `http://extraction.ai.internal/docs`
+
+### 5.2 Portainer
+
+Interface for managing all containers: status, logs, console, restart, resource usage. Replaces the PowerShell commands from section 3.
+
+**Step 1 — uncomment the service in `docker-compose.yml`**
+
+In [`docker-compose.yml`](docker-compose.yml), remove the comment markers in three places:
+
+| Place | What |
+|---|---|
+| Block `management:` under `services:` | The service itself |
+| Entry `management:` under `volumes:` | Its storage |
+| Second `depends_on` line of the `proxy` service | The variant with `management`; comment out the first one |
+
+Without the `--http-enabled` switch Portainer serves HTTPS on port 9443 only.
+
+**Step 2 — uncomment the block in `Caddyfile`**
+
+In [`Caddyfile`](Caddyfile), remove the comment markers in front of the `http://management.ai.internal` block.
+
+**Step 3 — register the name in the hosts file**
+
+Start an editor as Administrator, open `C:\Windows\System32\drivers\etc\hosts`, append `management.ai.internal` to the existing line, save.
+
+```powershell
+ipconfig /flushdns
+```
+
+**Step 4 — start and fetch the setup token**
+
+```powershell
+cd C:\Project\Local-LLM
+docker compose up -d
+docker logs management
+```
+
+Find the line containing `setup_token=` in the output and copy the value.
+
+**Step 5 — create an account**
+
+1. Browser: `http://management.ai.internal`
+2. Paste the **setup token**, assign a username and password — at least twelve characters — **Create user**
+3. On the Edge Compute screen choose **Skip**
+4. Click **Get Started**
+
+From the container's start there are five minutes to finish step 5; after that the service inside the container shuts down. `docker restart management` restarts the window, with a new token.
+
+The `/var/run/docker.sock` mount gives Portainer full control over the Docker engine and therefore over the machine — do not expose the interface to the network.
+
+---
+
+## 6. Teardown Optional
+
+### 6.1 Docling API
+
+Delete the generated Markdown files:
+
+```powershell
+Remove-Item *.md
+```
+
+There is nothing to tear down on the stack itself: the API belongs to the already present `extraction` container.
+
+### 6.2 Portainer
+
+```powershell
+cd C:\Project\Local-LLM
+docker compose stop management
+docker compose rm -f management
+docker volume rm local-llm_management
+```
+
+Afterwards comment the `management` service, its volume entry and the `depends_on` variant with `management` back out in `docker-compose.yml`, comment the block in `Caddyfile` back out, and remove `management.ai.internal` from the hosts file.
+
+```powershell
+docker compose up -d
+ipconfig /flushdns
+```
+
+---
+
+## 7. Links
 
 **Models**
 - Qwen3.5 (Ollama): https://ollama.com/library/qwen3.5
@@ -274,9 +379,8 @@ Remove-Item -Recurse -Force C:\Project\Local-LLM
 - Open WebUI — RAG: https://docs.openwebui.com/features/chat-conversations/rag/
 - Open WebUI — Docling: https://docs.openwebui.com/features/chat-conversations/rag/document-extraction/docling/
 - Open WebUI — Tools: https://docs.openwebui.com/features/extensibility/plugin/tools/
-- Open WebUI — Environment variables: https://docs.openwebui.com/getting-started/env-configuration/
+- Open WebUI — environment variables: https://docs.openwebui.com/getting-started/env-configuration/
 - Open WebUI — OpenAPI tool servers: https://docs.openwebui.com/openapi-servers/open-webui/
-- Open WebUI — SSO: https://docs.openwebui.com/features/sso/
 - Docker Compose — GPU support: https://docs.docker.com/compose/how-tos/gpu-support/
 - Caddy — Caddyfile tutorial: https://caddyserver.com/docs/caddyfile-tutorial
 - Caddy — `reverse_proxy` directive: https://caddyserver.com/docs/caddyfile/directives/reverse_proxy
@@ -293,29 +397,15 @@ Remove-Item -Recurse -Force C:\Project\Local-LLM
 - Docker Desktop Windows — installation: https://docs.docker.com/desktop/setup/install/windows-install/
 - Docker Desktop — settings: https://docs.docker.com/desktop/settings-and-maintenance/settings/
 - WSL — commands and options: https://learn.microsoft.com/en-us/windows/wsl/basic-commands
-- Docker Compose — networks and name resolution: https://docs.docker.com/compose/how-tos/networking/
+- Docker Compose — networking and name resolution: https://docs.docker.com/compose/how-tos/networking/
 
-**Optional**
-- ComfyUI: https://docs.comfy.org/
-- SearXNG: https://docs.searxng.org/
-- oauth2-proxy: https://oauth2-proxy.github.io/oauth2-proxy/
-- Langfuse: https://langfuse.com/self-hosting
-- Portainer: https://docs.portainer.io/
+**Docling**
+- Docling: https://docling-project.github.io/docling/
+- Docling-Serve — API usage: https://github.com/docling-project/docling-serve/blob/main/docs/usage.md
 
----
-
-## 6. Optional
-
-**Capabilities**
-- **ComfyUI** — image generation, reachable by the model through a tool or from `automation`.
-- **SearXNG** — self-hosted metasearch as a search provider for `chat`, without an API key and without requests to third parties.
-
-**Access**
-- **oauth2-proxy** — sign in to `chat` via an existing identity provider instead of local accounts.
-
-**Data access**
-- **Docling API** — talk to `extraction` directly and fetch documents as Markdown files, independent of document search.
-
-**Operations**
-- **Langfuse** — records which text chunks were retrieved and which tools were called.
-- **Portainer** — containers, logs and volumes through an interface instead of the command line.
+**Portainer**
+- Installation on WSL / Docker Desktop: https://docs.portainer.io/start/install-ce/server/docker/wsl
+- Initial setup: https://docs.portainer.io/start/install-ce/server/setup
+- Finding, skipping and adjusting the setup token: https://docs.portainer.io/faqs/installing/setup-token
+- CLI switches: https://docs.portainer.io/advanced/cli
+- Five-minute window: https://docs.portainer.io/faqs/installing/your-portainer-instance-has-timed-out-for-security-purposes-error-fix

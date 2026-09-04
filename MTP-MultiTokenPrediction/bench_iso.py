@@ -1,12 +1,12 @@
-# bench_iso.py — MTP-Isolationsbenchmark
+# bench_iso.py — MTP isolation benchmark
 #
-# Faehrt ollama, llama-mtp und llama-base nacheinander hoch, misst je Prompt
-# mehrere Laeufe, protokolliert die GPU und faehrt jede Engine wieder
-# herunter — so liegt nie mehr als ein Modell im VRAM. Ablauf und Aufruf:
-# siehe README.md Abschnitt 4.2. Ergebnis: mtp_benchmark.csv im selben Ordner.
+# Brings ollama, llama-mtp and llama-base up one after another, measures several
+# runs per prompt, logs the GPU and shuts each engine down again — so never more
+# than one model is in VRAM. Procedure and invocation: see README.md section 4.2.
+# Result: mtp_benchmark.csv in the same folder.
 import csv, time, subprocess, statistics, threading, requests
 
-# ---------- Konfiguration ----------
+# ---------- Configuration ----------
 PROMPTS = {
     "code":  "Schreibe eine Funktion in Python, die Primzahlen bis N=777777 ausgibt.",
     "prosa": "Erkläre in drei Absätzen, wie ein Wankelmotor funktioniert.",
@@ -15,13 +15,13 @@ PROMPTS = {
     "story": "Schreibe eine Story mit 500 Worten über Fridolin den Komposthaufen.",
 }
 RUNS, WARMUP, TIMEOUT, READY_TIMEOUT = 5, 1, 600, 300
-OLLAMA_MODEL = "gemma4-q4kxl"                 # gleiche Q4_K_XL-GGUF wie llama.cpp
+OLLAMA_MODEL = "gemma4-q4kxl"                 # same Q4_K_XL GGUF as llama.cpp
 CSV = "mtp_benchmark.csv"
 
-# Identisches Sampling über alle Engines -> fairer Vergleich.
+# Identical sampling across all engines -> fair comparison.
 SAMPLING = {"temperature": 1.0, "top_p": 0.95, "top_k": 64, "seed": 42}
 
-# Phasen in Reihenfolge. Jede: hochfahren -> bereit warten -> messen -> runterfahren.
+# Phases in order. Each: bring up -> wait until ready -> measure -> shut down.
 PHASES = [
     {"engine": "ollama", "kind": "ollama",
      "up":   ["docker", "compose", "up", "-d", "ollama"],
@@ -40,9 +40,9 @@ PHASES = [
      "call":  "http://localhost:8081/v1/chat/completions"},
 ]
 
-# ---------- GPU-Monitor (nvidia-smi) ----------
+# ---------- GPU monitor (nvidia-smi) ----------
 def _num(x):
-    try: return float(x)                      # "[N/A]" (WSL2) -> None statt Absturz
+    try: return float(x)                      # "[N/A]" (WSL2) -> None instead of a crash
     except ValueError: return None
 
 def gpu_sample():
@@ -51,7 +51,7 @@ def gpu_sample():
          "--format=csv,noheader,nounits"], capture_output=True, text=True).stdout.strip()
     return [_num(x) for x in out.split(",")]
 
-class GpuMonitor(threading.Thread):          # pollt nvidia-smi im Hintergrund während der Messung
+class GpuMonitor(threading.Thread):          # polls nvidia-smi in the background during the measurement
     def __init__(self, interval=0.5):
         super().__init__(daemon=True)
         self.interval, self.samples, self._halt = interval, [], threading.Event()
@@ -64,17 +64,17 @@ class GpuMonitor(threading.Thread):          # pollt nvidia-smi im Hintergrund w
         self._halt.set(); self.join()
     def summary(self):
         def vals(i): return [s[i] for s in self.samples if s[i] is not None]
-        m, u, t, p = vals(0), vals(1), vals(2), vals(3)   # VRAM bleibt, auch wenn Temp/Power N/A
+        m, u, t, p = vals(0), vals(1), vals(2), vals(3)   # VRAM stays, even when temp/power are N/A
         return {"vram_mb_max": round(max(m)) if m else "",
                 "gpu_util_avg": round(sum(u) / len(u), 1) if u else "",
                 "temp_c_max":  round(max(t)) if t else "",
                 "power_w_avg": round(sum(p) / len(p), 1) if p else ""}
 
-# ---------- Hilfsfunktionen ----------
+# ---------- Helper functions ----------
 def run(cmd):
     print("$", " ".join(cmd)); subprocess.run(cmd, check=True)
 
-def wait_ready(url):                          # wartet, bis der Server 200 liefert (Modell geladen)
+def wait_ready(url):                          # waits until the server returns 200 (model loaded)
     print(f"   warte auf {url} …", end="", flush=True)
     start = time.perf_counter()
     while time.perf_counter() - start < READY_TIMEOUT:
@@ -86,13 +86,13 @@ def wait_ready(url):                          # wartet, bis der Server 200 liefe
         time.sleep(2)
     raise TimeoutError(f"Server nicht bereit: {url}")
 
-def measure(phase, prompt):                   # ein Aufruf -> tok/s aus der Antwort
+def measure(phase, prompt):                   # one call -> tok/s from the response
     t0 = time.perf_counter()
     if phase["kind"] == "llamacpp":
-        # Chat-Endpunkt: Server wendet Gemmas Template an, tokenisiert Spezialtokens korrekt,
-        # setzt den Stop selbst und liefert timings mit.
+        # Chat endpoint: the server applies Gemma's template, tokenizes special tokens
+        # correctly, sets the stop itself and returns timings.
         payload = {"messages": [{"role": "user", "content": prompt}], "stream": False,
-                   "chat_template_kwargs": {"enable_thinking": False},  # Thinking aus, wie bei Ollama
+                   "chat_template_kwargs": {"enable_thinking": False},  # thinking off, same as Ollama
                    **SAMPLING}
         r = requests.post(phase["call"], json=payload, timeout=TIMEOUT).json()
         t = r["timings"]
@@ -107,16 +107,16 @@ def measure(phase, prompt):                   # ein Aufruf -> tok/s aus der Antw
         r = requests.post(phase["call"], json=payload, timeout=TIMEOUT).json()
         ec, ed   = r.get("eval_count", 0), r.get("eval_duration", 0)
         pec, ped = r.get("prompt_eval_count", 0), r.get("prompt_eval_duration", 0)
-        gen  = ec / (ed / 1e9) if ed else 0.0          # ed=0 bei Prompt-Cache-Hit abfangen
+        gen  = ec / (ed / 1e9) if ed else 0.0          # guard against ed=0 on a prompt cache hit
         pr   = pec / (ped / 1e9) if ped else 0.0
         ntok = ec
-        text = r.get("message", {}).get("content", "")  # generierter Text
+        text = r.get("message", {}).get("content", "")  # generated text
     return {"gen_tok_s": round(gen, 2), "prompt_tok_s": round(pr, 2),
             "gen_tokens": ntok, "wall_s": round(time.perf_counter() - t0, 3),
             "output": text}
 
-# ---------- Ablauf ----------
-# Sauberer Start: alle Engines aus (open-webui darf laufen, nutzt keine GPU).
+# ---------- Procedure ----------
+# Clean start: all engines off (open-webui may run, it uses no GPU).
 subprocess.run(["docker", "compose", "stop", "llama-mtp", "ollama"])
 subprocess.run(["docker", "compose", "--profile", "iso", "stop", "llama-base"])
 
@@ -127,8 +127,8 @@ for phase in PHASES:
     try:
         wait_ready(phase["ready"])
         for _ in range(WARMUP):
-            measure(phase, next(iter(PROMPTS.values())))  # Warmup: Modell in den VRAM laden
-        mon = GpuMonitor(); mon.start()                  # GPU während der Messung protokollieren
+            measure(phase, next(iter(PROMPTS.values())))  # warmup: load the model into VRAM
+        mon = GpuMonitor(); mon.start()                  # log the GPU during the measurement
         phase_rows = []
         for label, prompt in PROMPTS.items():
             for i in range(1, RUNS + 1):
@@ -138,13 +138,13 @@ for phase in PHASES:
                 print(f'{label:>5} | {phase["engine"]:>6} | Lauf {i:>2}: {m["gen_tok_s"]:>7} tok/s')
         mon.stop()
         gpu = mon.summary()
-        for m in phase_rows:                             # GPU-Kennzahlen an jede Zeile hängen
+        for m in phase_rows:                             # attach GPU metrics to every row
             m.update(gpu)
         rows.extend(phase_rows)
         print(f'   GPU: {gpu["vram_mb_max"]} MB (max) | {gpu["gpu_util_avg"]} % | '
               f'{gpu["temp_c_max"]} °C | {gpu["power_w_avg"]} W')
     finally:
-        run(phase["down"])                               # immer runterfahren -> VRAM frei
+        run(phase["down"])                               # always shut down -> VRAM freed
 
 # ---------- CSV ----------
 fields = ["prompt", "engine", "run", "gen_tok_s", "prompt_tok_s", "gen_tokens", "wall_s",
@@ -152,7 +152,7 @@ fields = ["prompt", "engine", "run", "gen_tok_s", "prompt_tok_s", "gen_tokens", 
 with open(CSV, "w", newline="", encoding="utf-8") as f:
     w = csv.DictWriter(f, fieldnames=fields); w.writeheader(); w.writerows(rows)
 
-# ---------- Auswertung ----------
+# ---------- Evaluation ----------
 print("\n--- Ergebnis (Ø Generation tok/s) ---")
 for label in PROMPTS:
     mean = {}

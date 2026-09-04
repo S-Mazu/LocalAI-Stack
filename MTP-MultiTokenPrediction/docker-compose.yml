@@ -1,18 +1,18 @@
-# docker-compose.yml — Gemma 4 12B MTP-Teststack
+# docker-compose.yml — Gemma 4 12B MTP test stack
 #
-# Vier Container zum Vergleich von llama.cpp mit/ohne Multi-Token Prediction
-# (MTP) gegen Ollama, alle mit demselben Gemma-4-12B-Modell (Q4_K_XL).
+# Four containers comparing llama.cpp with/without Multi-Token Prediction
+# (MTP) against Ollama, all on the same Gemma 4 12B model (Q4_K_XL).
 #
-#   docker compose pull && docker compose up -d       Normalbetrieb — startet
+#   docker compose pull && docker compose up -d       Normal operation — starts
 #                                                      llama-mtp, ollama, open-webui
-#   docker compose --profile iso up -d llama-base      Referenzphase des Benchmarks
+#   docker compose --profile iso up -d llama-base      Reference phase of the benchmark
 #
-# llama-base liegt im Profil "iso" und laeuft nicht im Normalbetrieb mit; das
-# Benchmark-Skript (bench_iso.py) faehrt es gezielt hoch und wieder herunter.
+# llama-base sits in the "iso" profile and does not run in normal operation; the
+# benchmark script (bench_iso.py) brings it up and down on purpose.
 
 services:
 
-  # llama.cpp MIT MTP — der Pruefstand.
+  # llama.cpp WITH MTP — the test bench.
   llama-mtp:
     container_name: llama-mtp
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
@@ -29,8 +29,8 @@ services:
       --host 0.0.0.0 --port 8080
     restart: unless-stopped
 
-  # llama.cpp OHNE MTP — Referenz. Nur mit "--profile iso" aktiv, damit nie
-  # zwei 12B-Instanzen gleichzeitig im VRAM liegen.
+  # llama.cpp WITHOUT MTP — reference. Only active with "--profile iso", so that
+  # two 12B instances are never in VRAM at the same time.
   llama-base:
     container_name: llama-base
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
     profiles: ["iso"]
 
-  # Ollama — dasselbe Q4_K_XL-Modell, fuer den Stack-Vergleich.
+  # Ollama — the same Q4_K_XL model, for the stack comparison.
   ollama:
     container_name: ollama
     image: ollama/ollama:latest
@@ -54,11 +54,11 @@ services:
     ports: ["11434:11434"]
     volumes:
       - ./ollama:/root/.ollama
-      # Zugriff auf dieselbe GGUF wie llama.cpp, fuer den Modell-Import (3.6).
+      # Access to the same GGUF as llama.cpp, for the model import (3.6).
       - ./models:/models:ro
     restart: unless-stopped
 
-  # Gemeinsame Chat-UI fuer den subjektiven Test (4.1).
+  # Shared chat UI for the subjective test (4.1).
   open-webui:
     container_name: open-webui
     image: ghcr.io/open-webui/open-webui:main

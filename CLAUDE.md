@@ -41,8 +41,15 @@ Applies to `CLAUDE.md`, `HISTORY.md`, `FILEMAP.md`, `PROJECTPLAN.md`, `DECISIONS
 - **Bold marks identifiers and rules.**
 - **An adverb earns its place by changing the meaning.**
 - **`PROJECTPLAN.md` holds open work.**
+- **A `README.md` documents what is built.** An idea that is only named goes to `PROJECTPLAN.md`.
 - **`HISTORY.md` is append-only.**
 - **Maintainer decides which explanations are needed.** Even if they fail the Deletion Test.
+
+## Code Style
+
+- **Comments in code and config files are English.**
+- **Optional components ship commented out in the file they belong to.** A second
+  file is a copy that drifts from the original.
 
 ## Documentation Protocol
 

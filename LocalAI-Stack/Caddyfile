@@ -1,45 +1,53 @@
-# Caddyfile — Reverse Proxy
+# Caddyfile — reverse proxy
 #
-# Zweck: Jeder Container wird unter seinem Namen erreichbar, statt unter
-# localhost mit Portnummer. Aus http://localhost:3000 wird http://chat
+# Purpose: every container becomes reachable under its own name instead of
+# under localhost with a port number. http://localhost:3000 becomes
+# http://chat.ai.internal
 #
-# Wie es zusammenspielt:
-#   1. Die hosts-Datei von Windows leitet die Namen auf 127.0.0.1
-#   2. Dort nimmt dieser Proxy auf Port 80 die Anfrage entgegen
-#   3. Anhand des Namens im Aufruf wählt er den passenden Container
+# How it fits together:
+#   1. The Windows hosts file points the names at 127.0.0.1
+#   2. There this proxy accepts the request on port 80
+#   3. From the name in the request it picks the matching container
 #
-# Aufbau eines Blocks:
-#   http://<name>            = worauf der Proxy hört
-#   reverse_proxy <ziel>     = wohin er weiterleitet, Containername plus Port
+# Structure of a block:
+#   http://<name>            what the proxy listens for
+#   reverse_proxy <target>   where it forwards to, container name plus port
 #
-# Das Präfix http:// ist Pflicht: Ohne es versucht Caddy, für jeden Namen
-# ein HTTPS-Zertifikat zu beschaffen. Das schlägt bei lokalen Namen fehl.
+# The http:// prefix is mandatory: without it Caddy tries to obtain an HTTPS
+# certificate for every name. That fails for local names.
 
 
-# Chat-Oberfläche (Open WebUI)
-# Ziel ist Port 8080, weil der Container intern darauf hört.
-# Die Weiterleitung 3000:8080 aus der docker-compose.yml gilt hier nicht.
-http://chat {
+# Chat interface (Open WebUI)
+# The target is port 8080 because that is what the container listens on
+# internally. The 3000:8080 mapping from docker-compose.yml does not apply here.
+http://chat.ai.internal {
     reverse_proxy chat:8080
 }
 
-# Workflow-Automatisierung (n8n)
-http://automation {
+# Workflow automation (n8n)
+http://automation.ai.internal {
     reverse_proxy automation:5678
 }
 
-# MCP-Werkzeuge (mcpo)
-# Die Werkzeugliste liegt unter http://tools/docs
-http://tools {
+# MCP tools (mcpo)
+# The tool list is at http://tools.ai.internal/docs
+http://tools.ai.internal {
     reverse_proxy tools:8000
 }
 
-# Dokument-Extraktion (Docling)
-http://extraction {
+# Document extraction (Docling)
+http://extraction.ai.internal {
     reverse_proxy extraction:5001
 }
 
-# Sprachmodelle (Ollama)
-http://inference {
+# Language models (Ollama)
+http://inference.ai.internal {
     reverse_proxy inference:11434
 }
+
+# --- Optional: Portainer (README 5.2) ---
+# Remove the leading # from the three lines below to enable it.
+#
+# http://management.ai.internal {
+#     reverse_proxy management:9000
+# }

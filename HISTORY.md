@@ -14,3 +14,14 @@ Stack: MTP-MultiTokenPrediction, LocalAI-Stack
 standalone files (LocalAI-Stack already had its three config files as standalone files). All
 four sub-project READMEs (EN + DE) now reference these files by path instead of embedding their
 full content.
+
+## 2026-09-04 — News.md synced into LocalAI-Stack
+Stack: LocalAI-Stack, MTP-MultiTokenPrediction
+Proxy hostnames changed from bare container names to `*.ai.internal`. `chat` gained two
+sysctls: WSL2's narrow ephemeral port range plus two-minute TIME_WAIT exhausted the ports
+its outbound calls need. Docling API and Portainer promoted from idea to documented
+optional sections, with the Portainer service and proxy block shipping commented out in
+`docker-compose.yml` and `Caddyfile` so enabling them is uncommenting. Open WebUI tool
+binding moved to Settings → Integrations → External Tool Servers. All code comments
+translated to English; German is now README-DE only. `install.cmd` removed as a relic.
+News.md removed; its content now lives in the sub-project files it described.
