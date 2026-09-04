@@ -21,33 +21,33 @@
 # The target is port 8080 because that is what the container listens on
 # internally. The 3000:8080 mapping from docker-compose.yml does not apply here.
 http://chat.ai.internal {
-    reverse_proxy chat:8080
+	reverse_proxy chat:8080
 }
 
 # Workflow automation (n8n)
 http://automation.ai.internal {
-    reverse_proxy automation:5678
+	reverse_proxy automation:5678
 }
 
 # MCP tools (mcpo)
 # The tool list is at http://tools.ai.internal/docs
 http://tools.ai.internal {
-    reverse_proxy tools:8000
+	reverse_proxy tools:8000
 }
 
 # Document extraction (Docling)
 http://extraction.ai.internal {
-    reverse_proxy extraction:5001
+	reverse_proxy extraction:5001
 }
 
 # Language models (Ollama)
 http://inference.ai.internal {
-    reverse_proxy inference:11434
+	reverse_proxy inference:11434
 }
 
 # --- Optional: Portainer (README 5.2) ---
 # Remove the leading # from the three lines below to enable it.
 #
 # http://management.ai.internal {
-#     reverse_proxy management:9000
+# 	reverse_proxy management:9000
 # }
