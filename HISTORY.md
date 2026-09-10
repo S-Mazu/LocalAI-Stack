@@ -45,3 +45,11 @@ commented blocks, which left sections 5.2 to 5.4 with nothing to uncomment; they
 with the repo copies and `proxy` restarted. The `extraction` row of section 3.14 pointed at the
 container root, which has no route — it now points at `/ui`, where section 5.1 already sent the
 reader.
+
+## 2026-09-10 — InvokeAI enabled on the live stack, proxy restart added to the optional sections
+Stack: LocalAI-Stack
+`images` enabled in the deployed stack and reached under `images.ai.internal`, GPU passed through.
+Enabling it exposed a gap in all three optional sections: `docker compose up -d` does not recreate
+`proxy` when only the bind-mounted `Caddyfile` changed, so the new hostname stayed unrouted until
+`proxy` was restarted by hand. Sections 5.2 to 5.4 and their teardown counterparts 6.2 to 6.4 now
+carry `docker compose restart proxy`.

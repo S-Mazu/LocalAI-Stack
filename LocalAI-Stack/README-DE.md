@@ -305,8 +305,11 @@ ipconfig /flushdns
 ```powershell
 cd C:\Project\Local-LLM
 docker compose up -d
+docker compose restart proxy
 docker logs management
 ```
+
+`up -d` erstellt `proxy` bei geändertem `Caddyfile` nicht neu; ohne den Neustart bleibt der neue Name ohne Route.
 
 In der Ausgabe die Zeile mit `setup_token=` suchen und den Wert kopieren.
 
@@ -356,8 +359,11 @@ ipconfig /flushdns
 ```powershell
 cd C:\Project\Local-LLM
 docker compose up -d
+docker compose restart proxy
 docker exec chat curl -s -o /dev/null -w "%{http_code}" http://shell:8000/docs
 ```
+
+`up -d` erstellt `proxy` bei geändertem `Caddyfile` nicht neu; ohne den Neustart bleibt der neue Name ohne Route.
 
 Die Ausgabe muss lauten:
 
@@ -444,7 +450,10 @@ ipconfig /flushdns
 ```powershell
 cd C:\Project\Local-LLM
 docker compose up -d
+docker compose restart proxy
 ```
+
+`up -d` erstellt `proxy` bei geändertem `Caddyfile` nicht neu; ohne den Neustart bleibt der neue Name ohne Route.
 
 Browser: `http://images.ai.internal`
 
@@ -508,6 +517,7 @@ Danach in der `docker-compose.yml` den Dienst `management` und seinen Volume-Ein
 
 ```powershell
 docker compose up -d
+docker compose restart proxy
 ipconfig /flushdns
 ```
 
@@ -524,6 +534,7 @@ Danach in der `docker-compose.yml` den Dienst `shell` und seinen Volume-Eintrag 
 
 ```powershell
 docker compose up -d
+docker compose restart proxy
 ipconfig /flushdns
 ```
 
@@ -540,6 +551,7 @@ Danach in der `docker-compose.yml` den Dienst `images` und seinen Volume-Eintrag
 
 ```powershell
 docker compose up -d
+docker compose restart proxy
 ipconfig /flushdns
 ```
 
