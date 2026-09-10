@@ -418,7 +418,7 @@ Erzeugt und bearbeitet Bilder. Eigenständige Oberfläche mit Leinwand, Masken u
 Die FLUX-Modelle setzen eine Zustimmung zur Lizenz voraus.
 
 1. Konto auf `https://huggingface.co` anlegen.
-2. `https://huggingface.co/black-forest-labs/FLUX.2-klein-9B` aufrufen, Lizenz und Nutzungsbedingungen bestätigen.
+2. `https://huggingface.co/black-forest-labs/FLUX.2-klein-9B` aufrufen, Lizenz und Nutzungsbedingungen bestätigen. Dasselbe unter `https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-fp8` — das ist ein eigenes Repository mit eigener Lizenz.
 3. Unter **Settings → Access Tokens** einen Token mit Leserecht erzeugen und kopieren.
 
 **Schritt 2 — Dienst in `docker-compose.yml` einkommentieren**
@@ -468,7 +468,18 @@ docker restart images
 
 Unter WSL2 wird das Hugging-Face-CDN über NAT64 auf eine Adresse aufgelöst, die der SSRF-Schutz von InvokeAI als privat einstuft und ablehnt. Die Einstellung schaltet diesen Schutz ab.
 
-**Schritt 7 — Modelle installieren**
+**Schritt 7 — Dem Downloader den Token geben**
+
+Den Token in der Oberfläche unter **Model Manager → Add Model → HuggingFace** eintragen und zusätzlich in die Konfiguration schreiben:
+
+```powershell
+docker exec images sh -c "printf '\nremote_api_tokens:\n  - url_regex: huggingface\\\\.co\n    token: <Token aus Schritt 1>\n' >> /invokeai/invokeai.yaml"
+docker restart images
+```
+
+InvokeAI führt zwei Token-Speicher. Installationen über die Repo-ID nutzen den, den die Oberfläche schreibt; Installationen über eine URL lesen `remote_api_tokens` und scheitern ohne ihn mit `401 Unauthorized`.
+
+**Schritt 8 — Modelle installieren**
 
 Reiter **Model Manager** → Bereich **Add Model** → Feld für die HuggingFace-Repo-ID. Je Zeile eine Kennung eintragen und installieren:
 
@@ -480,11 +491,18 @@ Reiter **Model Manager** → Bereich **Add Model** → Feld für die HuggingFace
 
 Die fp8-Fassung ist eine einzelne Datei, kein Diffusers-Ordner, und wird deshalb über die URL installiert — eine bloße Repo-ID ergibt `409: No downloadable files found`. Unter **Starter Models** steht sie als **FLUX.2 Klein 9B (FP8)**.
 
-Der Download umfasst mehrere Gigabyte je Modell.
+Sie braucht zusätzlich zwei Bestandteile, die die Diffusers-Fassung selbst mitbringt. Beide installieren, sonst ist das Modell nicht nutzbar:
+
+| Repo-ID | Bestandteil |
+|---|---|
+| `black-forest-labs/FLUX.2-klein-4B::vae` | VAE |
+| `black-forest-labs/FLUX.2-klein-9B::text_encoder+tokenizer` | Text-Encoder |
+
+Der Download umfasst mehrere Gigabyte je Modell. Ein Neustart von `images` pausiert alle laufenden Installationen; im **Model Manager** setzt ein pausierter Auftrag auf der Teildatei wieder auf.
 
 InvokeAI lädt Modelle nur teilweise in den Grafikspeicher und tauscht während der Erzeugung nach. Diese Einstellung ist ab Werk aktiv und macht Modelle nutzbar, die 16 GB überschreiten; die Erzeugung dauert dann länger. Das unquantisierte `FLUX.2-klein-9B` verlangt rund 29 GB und ist der Fall, für den es dieses Verhalten gibt; die fp8-Variante passt ohne Nachtauschen und zeigt, was das Nachtauschen kostet.
 
-**Schritt 8 — Vergleich durchführen**
+**Schritt 9 — Vergleich durchführen**
 
 Für beide Modelle nacheinander mit identischem Prompt, Seed, Schrittzahl und Auflösung:
 

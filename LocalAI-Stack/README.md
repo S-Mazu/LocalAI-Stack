@@ -418,7 +418,7 @@ Generates and edits images. Standalone interface with canvas, masks and model ma
 The FLUX models require accepting the licence.
 
 1. Create an account at `https://huggingface.co`.
-2. Open `https://huggingface.co/black-forest-labs/FLUX.2-klein-9B`, accept the licence and the terms of use.
+2. Open `https://huggingface.co/black-forest-labs/FLUX.2-klein-9B`, accept the licence and the terms of use. Do the same at `https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-fp8` — it is a separate repository with its own licence.
 3. Under **Settings → Access Tokens** create a token with read permission and copy it.
 
 **Step 2 — uncomment the service in `docker-compose.yml`**
@@ -468,7 +468,18 @@ docker restart images
 
 Under WSL2 the Hugging Face CDN resolves over NAT64 to an address InvokeAI's SSRF guard treats as private and refuses. The setting switches that guard off.
 
-**Step 7 — install models**
+**Step 7 — give the downloader the token**
+
+Enter the token in the interface under **Model Manager → Add Model → HuggingFace**, then write it into the configuration as well:
+
+```powershell
+docker exec images sh -c "printf '\nremote_api_tokens:\n  - url_regex: huggingface\\\\.co\n    token: <token from step 1>\n' >> /invokeai/invokeai.yaml"
+docker restart images
+```
+
+InvokeAI keeps two token stores. Installs by repo ID use the one the interface writes; installs by URL read `remote_api_tokens` and fail with `401 Unauthorized` without it.
+
+**Step 8 — install models**
 
 **Model Manager** tab → **Add Model** area → field for the HuggingFace repo ID. Enter one ID per row and install:
 
@@ -480,11 +491,18 @@ Under WSL2 the Hugging Face CDN resolves over NAT64 to an address InvokeAI's SSR
 
 The fp8 build is a single file, not a Diffusers folder, so it is installed by URL — a bare repo ID gives `409: No downloadable files found`. **Starter Models** lists it as **FLUX.2 Klein 9B (FP8)**.
 
-The download runs to several gigabytes per model.
+It also needs two companions the Diffusers build carries itself. Install both, or the model cannot be used:
+
+| Repo ID | Part |
+|---|---|
+| `black-forest-labs/FLUX.2-klein-4B::vae` | VAE |
+| `black-forest-labs/FLUX.2-klein-9B::text_encoder+tokenizer` | Text encoder |
+
+The download runs to several gigabytes per model. Restarting `images` pauses everything in flight; **Model Manager** resumes a paused install from its partial file.
 
 InvokeAI loads models into graphics memory only in part and swaps during generation. This setting is on by default and makes models usable that exceed 16 GB; generation then takes longer. Unquantised `FLUX.2-klein-9B` wants around 29 GB and is the case this behaviour exists for; the fp8 variant fits without swapping and shows what the swapping costs.
 
-**Step 8 — run the comparison**
+**Step 9 — run the comparison**
 
 For both models in turn with identical prompt, seed, step count and resolution:
 

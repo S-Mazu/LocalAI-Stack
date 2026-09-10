@@ -62,3 +62,14 @@ Face CDN, which resolves over NAT64 under WSL2, so every install failed until
 Diffusers folder, so the repo ID in step 7 gave `409: No downloadable files found` and is replaced
 by the file URL. The `HUGGING_FACE_HUB_TOKEN` line now ships commented out: an invalid token makes
 Hugging Face reject public repositories too.
+
+## 2026-09-10 — Image models queued, section 5.4 corrected against the running stack
+Stack: LocalAI-Stack
+`Qwen/Qwen-Image`, `black-forest-labs/FLUX.2-klein-9B`, the fp8 build and its VAE and text encoder
+queued through the model API; the VAE and the text encoder completed, the rest was still
+downloading when the session ended. Four defects in section 5.4 surfaced and are now documented: the
+fp8 repository is separately gated, so accepting the licence on the 9B repository is not enough;
+the fp8 build needs a VAE and a text encoder that the Diffusers build carries itself; InvokeAI
+keeps two token stores, and installs by URL read `remote_api_tokens` rather than the token the
+interface writes, failing with `401 Unauthorized` without it; restarting `images` pauses running
+installs, which resume from their partial files.
