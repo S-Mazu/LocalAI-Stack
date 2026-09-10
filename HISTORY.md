@@ -35,3 +35,13 @@ is extended by hand instead; Portainer's section was rewritten to match. Open Te
 against `/docs`, not the undocumented `/health`, and needs the model's Function Calling on
 `Native`; left on `Default` it is never called. InvokeAI documents the unquantised
 `FLUX.2-klein-9B` next to its fp8 build, to measure what partial model loading costs on 16 GB.
+
+## 2026-09-10 — Live stack checked against the HowTo
+Stack: LocalAI-Stack
+Docker-side check of the running stack against README sections 2, 3 and 5. Containers, images,
+ports, hosts entries, models, GPU passthrough, MCP tool paths and volume names all match. The
+deployed config files in `C:\Project\Local-LLM` were an older revision without the optional
+commented blocks, which left sections 5.2 to 5.4 with nothing to uncomment; they were replaced
+with the repo copies and `proxy` restarted. The `extraction` row of section 3.14 pointed at the
+container root, which has no route — it now points at `/ui`, where section 5.1 already sent the
+reader.

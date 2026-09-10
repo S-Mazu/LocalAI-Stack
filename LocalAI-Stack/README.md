@@ -196,7 +196,7 @@ All three nodes turn green and the model's answer appears in the chat.
 | `chat` | `http://chat.ai.internal` | `http://localhost:3000` |
 | `automation` | `http://automation.ai.internal` | `http://localhost:5678` |
 | `tools` | `http://tools.ai.internal/docs` | `http://localhost:8000/docs` |
-| `extraction` | `http://extraction.ai.internal` | `http://localhost:5001` |
+| `extraction` | `http://extraction.ai.internal/ui` | `http://localhost:5001/ui` |
 | `inference` | `http://inference.ai.internal` | `http://localhost:11434` |
 
 `chat` and `automation` are protected by the accounts created, the other three are not — do not expose those ports to the network.
