@@ -50,6 +50,8 @@ Applies to `CLAUDE.md`, `HISTORY.md`, `FILEMAP.md`, `PROJECTPLAN.md`, `DECISIONS
 - **Comments in code and config files are English.**
 - **Optional components ship commented out in the file they belong to.** A second
   file is a copy that drifts from the original.
+- **A list several optional components share is extended by hand.** Shipping it as
+  commented variants needs one variant per combination.
 
 ## Documentation Protocol
 

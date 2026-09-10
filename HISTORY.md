@@ -25,3 +25,13 @@ optional sections, with the Portainer service and proxy block shipping commented
 binding moved to Settings → Integrations → External Tool Servers. All code comments
 translated to English; German is now README-DE only. `install.cmd` removed as a relic.
 News.md removed; its content now lives in the sub-project files it described.
+
+## 2026-09-10 — Open Terminal and InvokeAI added as optional components
+Stack: LocalAI-Stack
+`shell` (Open Terminal) and `images` (InvokeAI) added to `docker-compose.yml` and `Caddyfile`,
+shipped commented out like Portainer. The `depends_on` of `proxy` no longer carries one commented
+variant per optional service — with three of them the variants outnumber the services, so the list
+is extended by hand instead; Portainer's section was rewritten to match. Open Terminal is checked
+against `/docs`, not the undocumented `/health`, and needs the model's Function Calling on
+`Native`; left on `Default` it is never called. InvokeAI documents the unquantised
+`FLUX.2-klein-9B` next to its fp8 build, to measure what partial model loading costs on 16 GB.

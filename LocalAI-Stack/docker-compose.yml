@@ -111,15 +111,13 @@ services:
       # The whole folder, not the single file — the image requires it this way.
       - ./proxy:/etc/caddy
       - proxy:/data
+    # Enabling an optional service below: add its name to this list.
     depends_on: [inference, chat, extraction, tools, automation]
-    # Optional Portainer (README 5.2): comment out the line above and
-    # uncomment the line below.
-    # depends_on: [inference, chat, extraction, tools, automation, management]
     restart: unless-stopped
 
   # --- Optional: Portainer (README 5.2) ---
   # Web interface for all containers: status, logs, console, restart, resource
-  # usage. Remove the leading # from the nine lines below to enable it.
+  # usage. Remove the leading # from the block below to enable it.
   #
   # The /var/run/docker.sock mount gives Portainer full control over the
   # Docker engine and therefore over the machine — do not expose the
@@ -136,6 +134,50 @@ services:
   #     - management:/data
   #   restart: unless-stopped
 
+  # --- Optional: Open Terminal (README 5.3) ---
+  # Gives the model in chat a shell and a file system. Remove the leading #
+  # from the block below to enable it.
+  #
+  # The shell sees this container's file system and nothing else. Mounting the
+  # Docker socket would hand the model the machine — deliberately not set.
+  #
+  # shell:
+  #   container_name: shell
+  #   image: ghcr.io/open-webui/open-terminal:latest
+  #   # 8010 outside because tools already holds 8000. Inside it stays 8000.
+  #   ports: ["8010:8000"]
+  #   environment:
+  #     - OPEN_TERMINAL_API_KEY=<key of your choice>
+  #   volumes:
+  #     - shell:/home/user
+  #   restart: unless-stopped
+
+  # --- Optional: InvokeAI (README 5.4) ---
+  # Image generation and editing with its own interface. Remove the leading #
+  # from the block below to enable it.
+  #
+  # Shares the graphics card with inference — README 5.4 covers freeing the
+  # memory before generating.
+  #
+  # images:
+  #   container_name: images
+  #   image: ghcr.io/invoke-ai/invokeai:latest
+  #   ports: ["9090:9090"]
+  #   environment:
+  #     - INVOKEAI_ROOT=/invokeai
+  #     - HF_HOME=/invokeai/.cache/huggingface
+  #     - HUGGING_FACE_HUB_TOKEN=<token from README 5.4, step 1>
+  #   volumes:
+  #     - images:/invokeai
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
+  #   restart: unless-stopped
+
 # Named storage areas. Docker manages them itself; they survive recreating the
 # containers and are only deleted by "docker compose down -v".
 volumes:
@@ -144,5 +186,7 @@ volumes:
   automation:
   tools:
   proxy:
-  # Optional Portainer (README 5.2): remove the leading # from the line below.
+  # Optional services (README 5.2-5.4): remove the leading # to enable.
   # management:
+  # shell:
+  # images:

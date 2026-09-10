@@ -284,7 +284,7 @@ In [`docker-compose.yml`](docker-compose.yml), remove the comment markers in thr
 |---|---|
 | Block `management:` under `services:` | The service itself |
 | Entry `management:` under `volumes:` | Its storage |
-| Second `depends_on` line of the `proxy` service | The variant with `management`; comment out the first one |
+| List `depends_on` of the `proxy` service | Add `management` |
 
 Without the `--http-enabled` switch Portainer serves HTTPS on port 9443 only.
 
@@ -321,6 +321,166 @@ From the container's start there are five minutes to finish step 5; after that t
 
 The `/var/run/docker.sock` mount gives Portainer full control over the Docker engine and therefore over the machine — do not expose the interface to the network.
 
+### 5.3 Open Terminal
+
+Gives the model in `chat` a shell and a file system: run commands, create and edit files, install packages.
+
+**Step 1 — uncomment the service in `docker-compose.yml`**
+
+In [`docker-compose.yml`](docker-compose.yml), remove the comment markers in three places:
+
+| Place | What |
+|---|---|
+| Block `shell:` under `services:` | The service itself |
+| Entry `shell:` under `volumes:` | Its storage |
+| List `depends_on` of the `proxy` service | Add `shell` |
+
+Set `OPEN_TERMINAL_API_KEY` in the service block to a key of your choice.
+
+The `latest` image carries roughly 4 GB of tooling — Node.js, gcc, ffmpeg, LaTeX, data-science libraries — and can install more at runtime. `ghcr.io/open-webui/open-terminal:slim` is 430 MB, holds only git, curl and jq, and cannot install anything.
+
+**Step 2 — uncomment the block in `Caddyfile`**
+
+In [`Caddyfile`](Caddyfile), remove the comment markers in front of the `http://shell.ai.internal` block.
+
+**Step 3 — register the name in the hosts file**
+
+Start an editor as Administrator, open `C:\Windows\System32\drivers\etc\hosts`, append `shell.ai.internal` to the existing line, save.
+
+```powershell
+ipconfig /flushdns
+```
+
+**Step 4 — start and check**
+
+```powershell
+cd C:\Project\Local-LLM
+docker compose up -d
+docker exec chat curl -s -o /dev/null -w "%{http_code}" http://shell:8000/docs
+```
+
+The output must be:
+
+```
+200
+```
+
+**Step 5 — connect in `chat`**
+
+1. Browser: `http://chat.ai.internal/admin`
+2. **Settings** → **Integrations** → **Open Terminal** section → **+**
+3. Set the values:
+
+   | Field | Value |
+   |---|---|
+   | URL | `http://shell:8000` |
+   | API Key | the key set in step 1 |
+   | Auth Type | `Bearer` |
+
+4. Click **Save**, then reload the page.
+
+Without the reload the terminal does not appear in the selection in the chat.
+
+**Step 6 — switch the model to native function calling**
+
+1. Browser: `http://chat.ai.internal/admin`
+2. **Settings** → **Models** → `qwen3.5:9b-q4_K_M` → **Advanced Params**
+3. Set **Function Calling** to `Native`, **Save**.
+
+Left on `Default`, the model never calls the terminal.
+
+**Step 7 — test in the chat**
+
+Open a new conversation, enable the terminal in the selection, send:
+
+```
+Create a file test.txt with the content "hello" and then show me the content.
+```
+
+The model's tool output must contain `hello`.
+
+The documentation names a capable model as a prerequisite and lists smaller models as a reason for failure. If the test fails, it is the model, not the setup.
+
+The shell runs in the container and sees only its file system. A mount of the Docker socket would give the model full control over the machine — it is deliberately not set.
+
+### 5.4 InvokeAI
+
+Generates and edits images. Standalone interface with canvas, masks and model management.
+
+**Step 1 — get a Hugging Face access token**
+
+The FLUX models require accepting the licence.
+
+1. Create an account at `https://huggingface.co`.
+2. Open `https://huggingface.co/black-forest-labs/FLUX.2-klein-9B`, accept the licence and the terms of use.
+3. Under **Settings → Access Tokens** create a token with read permission and copy it.
+
+**Step 2 — uncomment the service in `docker-compose.yml`**
+
+In [`docker-compose.yml`](docker-compose.yml), remove the comment markers in three places:
+
+| Place | What |
+|---|---|
+| Block `images:` under `services:` | The service itself |
+| Entry `images:` under `volumes:` | Its storage |
+| List `depends_on` of the `proxy` service | Add `images` |
+
+Enter the token from step 1 at `HUGGING_FACE_HUB_TOKEN`.
+
+**Step 3 — uncomment the block in `Caddyfile`**
+
+In [`Caddyfile`](Caddyfile), remove the comment markers in front of the `http://images.ai.internal` block.
+
+**Step 4 — register the name in the hosts file**
+
+Start an editor as Administrator, open `C:\Windows\System32\drivers\etc\hosts`, append `images.ai.internal` to the existing line, save.
+
+```powershell
+ipconfig /flushdns
+```
+
+**Step 5 — start**
+
+```powershell
+cd C:\Project\Local-LLM
+docker compose up -d
+```
+
+Browser: `http://images.ai.internal`
+
+**Step 6 — install models**
+
+**Model Manager** tab → **Add Model** area → field for the HuggingFace repo ID. Enter one ID per row and install:
+
+| Repo ID | Model |
+|---|---|
+| `black-forest-labs/FLUX.2-klein-9B` | FLUX, prompt adherence |
+| `black-forest-labs/FLUX.2-klein-9b-fp8` | The same model quantised to 8 bit, from 12 GB graphics memory |
+| `Qwen/Qwen-Image` | Qwen, text inside the image |
+
+The download runs to several gigabytes per model.
+
+InvokeAI loads models into graphics memory only in part and swaps during generation. This setting is on by default and makes models usable that exceed 16 GB; generation then takes longer. Unquantised `FLUX.2-klein-9B` wants around 29 GB and is the case this behaviour exists for; the fp8 variant fits without swapping and shows what the swapping costs.
+
+**Step 7 — run the comparison**
+
+For both models in turn with identical prompt, seed, step count and resolution:
+
+| Task | Prompt |
+|---|---|
+| Prompt adherence | `three people at a table, a window on the left, daylight` |
+| Text in the image | `shop sign reading "Bäckerei Mahler", street view` |
+
+Free the graphics memory before generating:
+
+```powershell
+docker exec inference ollama stop qwen3.5:9b-q4_K_M
+```
+
+The language model reloads itself on the next request in `chat`.
+
+**Licence:** FLUX.2 klein 9B is under the FLUX Non-Commercial License. Testing and evaluation are permitted, including by companies. Production use and generating revenue are not. The generated images may be used freely. Qwen-Image is under Apache 2.0.
+
 ---
 
 ## 6. Teardown Optional
@@ -344,7 +504,39 @@ docker compose rm -f management
 docker volume rm local-llm_management
 ```
 
-Afterwards comment the `management` service, its volume entry and the `depends_on` variant with `management` back out in `docker-compose.yml`, comment the block in `Caddyfile` back out, and remove `management.ai.internal` from the hosts file.
+Afterwards comment the `management` service and its volume entry back out in `docker-compose.yml`, remove `management` from the `depends_on` of the `proxy` service, comment the block in `Caddyfile` back out, and remove `management.ai.internal` from the hosts file.
+
+```powershell
+docker compose up -d
+ipconfig /flushdns
+```
+
+### 6.3 Open Terminal
+
+```powershell
+cd C:\Project\Local-LLM
+docker compose stop shell
+docker compose rm -f shell
+docker volume rm local-llm_shell
+```
+
+Afterwards comment the `shell` service and its volume entry back out in `docker-compose.yml`, remove `shell` from the `depends_on` of the `proxy` service, comment the block in `Caddyfile` back out, and remove `shell.ai.internal` from the hosts file. In `chat` under **Settings → Integrations → Open Terminal** delete the entry.
+
+```powershell
+docker compose up -d
+ipconfig /flushdns
+```
+
+### 6.4 InvokeAI
+
+```powershell
+cd C:\Project\Local-LLM
+docker compose stop images
+docker compose rm -f images
+docker volume rm local-llm_images
+```
+
+Afterwards comment the `images` service and its volume entry back out in `docker-compose.yml`, remove `images` from the `depends_on` of the `proxy` service, comment the block in `Caddyfile` back out, and remove `images.ai.internal` from the hosts file.
 
 ```powershell
 docker compose up -d
@@ -409,3 +601,23 @@ ipconfig /flushdns
 - Finding, skipping and adjusting the setup token: https://docs.portainer.io/faqs/installing/setup-token
 - CLI switches: https://docs.portainer.io/advanced/cli
 - Five-minute window: https://docs.portainer.io/faqs/installing/your-portainer-instance-has-timed-out-for-security-purposes-error-fix
+
+**Open Terminal**
+- Overview: https://docs.openwebui.com/features/open-terminal/
+- Installation: https://docs.openwebui.com/features/open-terminal/setup/installation/
+- Connecting to Open WebUI: https://docs.openwebui.com/features/open-terminal/setup/connecting/
+- File browser: https://docs.openwebui.com/features/open-terminal/file-browser/
+- Source and image variants: https://github.com/open-webui/open-terminal
+
+**InvokeAI**
+- Documentation: https://invoke.ai/
+- Docker: https://invoke.ai/configuration/docker/
+- System requirements: https://invoke.ai/start-here/system-requirements/
+- Low-VRAM mode: https://invoke.ai/configuration/low-vram-mode/
+- Installing models: https://invoke.ai/concepts/models/
+
+**Image models**
+- FLUX.2 klein — model overview: https://bfl.ai/blog/flux2-klein-towards-interactive-visual-intelligence
+- FLUX.2 klein 9B — licence text: https://huggingface.co/black-forest-labs/FLUX.2-klein-9B/blob/main/LICENSE.md
+- Qwen-Image — model card: https://huggingface.co/Qwen/Qwen-Image
+
