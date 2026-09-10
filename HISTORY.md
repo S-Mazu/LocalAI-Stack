@@ -53,3 +53,12 @@ Enabling it exposed a gap in all three optional sections: `docker compose up -d`
 `proxy` when only the bind-mounted `Caddyfile` changed, so the new hostname stayed unrouted until
 `proxy` was restarted by hand. Sections 5.2 to 5.4 and their teardown counterparts 6.2 to 6.4 now
 carry `docker compose restart proxy`.
+
+## 2026-09-10 — InvokeAI model install corrected against the running stack
+Stack: LocalAI-Stack
+Installing models exposed three defects in section 5.4. InvokeAI's SSRF guard refuses the Hugging
+Face CDN, which resolves over NAT64 under WSL2, so every install failed until
+`allow_private_download_urls` was set — now its own step. The fp8 build is a single file, not a
+Diffusers folder, so the repo ID in step 7 gave `409: No downloadable files found` and is replaced
+by the file URL. The `HUGGING_FACE_HUB_TOKEN` line now ships commented out: an invalid token makes
+Hugging Face reject public repositories too.

@@ -431,7 +431,7 @@ In [`docker-compose.yml`](docker-compose.yml), remove the comment markers in thr
 | Entry `images:` under `volumes:` | Its storage |
 | List `depends_on` of the `proxy` service | Add `images` |
 
-Enter the token from step 1 at `HUGGING_FACE_HUB_TOKEN`.
+Uncomment the `HUGGING_FACE_HUB_TOKEN` line and enter the token from step 1. Left commented out, only ungated models install.
 
 **Step 3 — uncomment the block in `Caddyfile`**
 
@@ -457,21 +457,34 @@ docker compose restart proxy
 
 Browser: `http://images.ai.internal`
 
-**Step 6 — install models**
+**Step 6 — allow the Hugging Face CDN**
+
+Every model install fails at once with `UnsafeDownloadURLException` until this is set:
+
+```powershell
+docker exec images sh -c "echo allow_private_download_urls: true >> /invokeai/invokeai.yaml"
+docker restart images
+```
+
+Under WSL2 the Hugging Face CDN resolves over NAT64 to an address InvokeAI's SSRF guard treats as private and refuses. The setting switches that guard off.
+
+**Step 7 — install models**
 
 **Model Manager** tab → **Add Model** area → field for the HuggingFace repo ID. Enter one ID per row and install:
 
 | Repo ID | Model |
 |---|---|
 | `black-forest-labs/FLUX.2-klein-9B` | FLUX, prompt adherence |
-| `black-forest-labs/FLUX.2-klein-9b-fp8` | The same model quantised to 8 bit, from 12 GB graphics memory |
+| `https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-fp8/resolve/main/flux-2-klein-9b-fp8.safetensors` | The same model quantised to 8 bit, from 12 GB graphics memory |
 | `Qwen/Qwen-Image` | Qwen, text inside the image |
+
+The fp8 build is a single file, not a Diffusers folder, so it is installed by URL — a bare repo ID gives `409: No downloadable files found`. **Starter Models** lists it as **FLUX.2 Klein 9B (FP8)**.
 
 The download runs to several gigabytes per model.
 
 InvokeAI loads models into graphics memory only in part and swaps during generation. This setting is on by default and makes models usable that exceed 16 GB; generation then takes longer. Unquantised `FLUX.2-klein-9B` wants around 29 GB and is the case this behaviour exists for; the fp8 variant fits without swapping and shows what the swapping costs.
 
-**Step 7 — run the comparison**
+**Step 8 — run the comparison**
 
 For both models in turn with identical prompt, seed, step count and resolution:
 

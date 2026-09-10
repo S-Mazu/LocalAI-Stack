@@ -166,7 +166,9 @@ services:
   #   environment:
   #     - INVOKEAI_ROOT=/invokeai
   #     - HF_HOME=/invokeai/.cache/huggingface
-  #     - HUGGING_FACE_HUB_TOKEN=<token from README 5.4, step 1>
+  #     # Gated repos need a real token — README 5.4, step 1. An invalid
+  #     # value is worse than none: Hugging Face then rejects public repos too.
+  #     # - HUGGING_FACE_HUB_TOKEN=
   #   volumes:
   #     - images:/invokeai
   #   deploy:

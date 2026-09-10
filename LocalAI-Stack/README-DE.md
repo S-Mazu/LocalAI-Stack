@@ -431,7 +431,7 @@ In [`docker-compose.yml`](docker-compose.yml) die Kommentarzeichen an drei Stell
 | Eintrag `images:` unter `volumes:` | Sein Speicher |
 | Liste `depends_on` beim Dienst `proxy` | `images` ergänzen |
 
-Bei `HUGGING_FACE_HUB_TOKEN` den Token aus Schritt 1 eintragen.
+Die Zeile `HUGGING_FACE_HUB_TOKEN` einkommentieren und den Token aus Schritt 1 eintragen. Bleibt sie auskommentiert, lassen sich nur ungated Modelle installieren.
 
 **Schritt 3 — Block im `Caddyfile` einkommentieren**
 
@@ -457,21 +457,34 @@ docker compose restart proxy
 
 Browser: `http://images.ai.internal`
 
-**Schritt 6 — Modelle installieren**
+**Schritt 6 — Hugging-Face-CDN freigeben**
+
+Jede Modellinstallation scheitert sofort mit `UnsafeDownloadURLException`, solange dies nicht gesetzt ist:
+
+```powershell
+docker exec images sh -c "echo allow_private_download_urls: true >> /invokeai/invokeai.yaml"
+docker restart images
+```
+
+Unter WSL2 wird das Hugging-Face-CDN über NAT64 auf eine Adresse aufgelöst, die der SSRF-Schutz von InvokeAI als privat einstuft und ablehnt. Die Einstellung schaltet diesen Schutz ab.
+
+**Schritt 7 — Modelle installieren**
 
 Reiter **Model Manager** → Bereich **Add Model** → Feld für die HuggingFace-Repo-ID. Je Zeile eine Kennung eintragen und installieren:
 
 | Repo-ID | Modell |
 |---|---|
 | `black-forest-labs/FLUX.2-klein-9B` | FLUX, Prompt-Treue |
-| `black-forest-labs/FLUX.2-klein-9b-fp8` | Dasselbe Modell auf 8 Bit quantisiert, ab 12 GB Grafikspeicher |
+| `https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-fp8/resolve/main/flux-2-klein-9b-fp8.safetensors` | Dasselbe Modell auf 8 Bit quantisiert, ab 12 GB Grafikspeicher |
 | `Qwen/Qwen-Image` | Qwen, Text im Bild |
+
+Die fp8-Fassung ist eine einzelne Datei, kein Diffusers-Ordner, und wird deshalb über die URL installiert — eine bloße Repo-ID ergibt `409: No downloadable files found`. Unter **Starter Models** steht sie als **FLUX.2 Klein 9B (FP8)**.
 
 Der Download umfasst mehrere Gigabyte je Modell.
 
 InvokeAI lädt Modelle nur teilweise in den Grafikspeicher und tauscht während der Erzeugung nach. Diese Einstellung ist ab Werk aktiv und macht Modelle nutzbar, die 16 GB überschreiten; die Erzeugung dauert dann länger. Das unquantisierte `FLUX.2-klein-9B` verlangt rund 29 GB und ist der Fall, für den es dieses Verhalten gibt; die fp8-Variante passt ohne Nachtauschen und zeigt, was das Nachtauschen kostet.
 
-**Schritt 7 — Vergleich durchführen**
+**Schritt 8 — Vergleich durchführen**
 
 Für beide Modelle nacheinander mit identischem Prompt, Seed, Schrittzahl und Auflösung:
 
